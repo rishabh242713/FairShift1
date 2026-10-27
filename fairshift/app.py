@@ -27,7 +27,11 @@ def create_app(config=None):
     app = Flask(__name__)
     app.config.update(SECRET_KEY=os.getenv('SECRET_KEY') or secrets.token_hex(32), DATABASE_URL=os.getenv('DATABASE_URL','sqlite:///fairshift.db'), SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE='Lax', SESSION_COOKIE_SECURE=os.getenv('COOKIE_SECURE')=='1', MAX_CONTENT_LENGTH=16384, PERMANENT_SESSION_LIFETIME=timedelta(hours=8))
     if config: app.config.update(config)
-    engine = create_engine(app.config['DATABASE_URL'])
+    url = app.config['DATABASE_URL']
+    if url.startswith('postgres://'): url = url.replace('postgres://', 'postgresql+psycopg://', 1)
+    elif url.startswith('postgresql://'): url = url.replace('postgresql://', 'postgresql+psycopg://', 1)
+    if url.startswith('sqlite'): engine = create_engine(url)
+    else: engine = create_engine(url, pool_pre_ping=True, pool_size=1, max_overflow=0)
     meta=MetaData()
     users=Table('users',meta,Column('id',Integer,primary_key=True),Column('username',String(80),unique=True),Column('password',String(255)),Column('name',String(80)),Column('role',String(20)),Column('sector',String(40)),Column('rate',Integer))
     shifts=Table('shifts',meta,Column('id',Integer,primary_key=True),Column('user_id',Integer,index=True),Column('start',String(40)),Column('end',String(40)))
